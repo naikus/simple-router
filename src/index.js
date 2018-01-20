@@ -104,23 +104,33 @@ const isPromise = type => typeof type.then === "function",
         }
         return null;
       },
-      resolve(path, context = {}) {
+      resolve(path /*, context = {}*/ ) {
         const routeInfo = this.match(path);
         if(routeInfo) {
-          const ctx = Object.assign({}, context, {
+          const ctx = {
             route: {
               path: routeInfo.path,
               params: routeInfo.params
             }
-          });
+          };
+          this.emitter.emit("before-route", path);
           let ret = routeInfo.controller(ctx);
           if(!isPromise(ret)) {
             ret = Promise.resolve(ret);
           }
-          ret.then(() => this.emitter.emit("route", routeInfo));
+          ret.then(retVal => {
+            this.current = routeInfo;
+            return retVal;
+          }).then(
+              retVal => this.emitter.emit("route", retVal),
+              rErr => this.emitter.emit("route-error", rErr)
+          );
           return ret;
         }
-        return Promise.reject(`Route not found ${path}`);
+        return Promise.reject({
+          message: `Route not found ${path}`, 
+          path
+        });
       },
       route(path) {
         this.history.push(path);
@@ -131,7 +141,8 @@ const isPromise = type => typeof type.then === "function",
           history.block(options.block);
           this.stopHistoryListener = history.listen((location, action) => {
             const path = location.pathname || "/~error";
-            listener(path, action, location);
+            
+            this.resolve(path);
           });
         }
       },
@@ -146,7 +157,6 @@ const isPromise = type => typeof type.then === "function",
         routes.forEach(r => {
           this.routes.push(makeRoute(r));
         });
-        // console.log(this.routes);
       }
     },
 

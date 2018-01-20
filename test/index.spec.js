@@ -16,7 +16,24 @@ const routes = [
 let router;
 
 beforeEach(() => {
-  router = Router.create(routes, {type: "memory"});
+  router = Router.create(routes, {
+    type: "memory",
+    getUserConfirmation(message, callback) {
+      // setTimeout(() => {
+        const val = !!Math.round(Math.random());
+        console.log(message, val);
+        console.log(callback);
+        callback(val);
+      // }, 100);
+    },
+    block(location, action) {
+      console.log(location, action);
+      return `Are you sure you want to go to ${location.pathname}`;
+    }
+  });
+  router.on("before-route", (e, path) => console.log("Before route", path));
+  router.on("route", (e, route) => console.log("Route", route));
+  router.on("route-error", (e, err) => console.log("Route error", err));
   router.start();
 });
 
@@ -25,6 +42,10 @@ afterEach(() => {
 });
 
 describe("Router tests", () => {
+  test("Routes to a path", () => {
+    router.route("/hello");
+  });
+
   test("Create router instance", () => {
     expect(router).not.toBeNull();
   });
