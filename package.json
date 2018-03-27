@@ -2,9 +2,10 @@
   "name": "simple-router",
   "version": "1.0.0-alpha",
   "description": "Simple and minimal routing library for react and other SPAs",
-  "main": "src/index.js",
+  "main": "src/simple-router.js",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "build": "babel src -d lib"
   },
   "repository": {
     "type": "git",
@@ -26,6 +27,8 @@
     "path-to-regexp": "^2.0.0"
   },
   "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-plugin-transform-es2015-modules-umd": "^6.24.1",
     "babel-plugin-transform-object-assign": "^6.22.0",
     "babel-preset-env": "^1.6.0",
     "eslint": "^4.9.0",
