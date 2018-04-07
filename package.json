@@ -2,7 +2,7 @@
   "name": "simple-router",
   "version": "1.0.0-alpha",
   "description": "Simple and minimal routing library for react and other SPAs",
-  "main": "src/simple-router.js",
+  "main": "lib/simple-router.js",
   "scripts": {
     "test": "jest",
     "build": "babel src -d lib"
