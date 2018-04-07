@@ -155,8 +155,11 @@ const isPromise = type => typeof type.then === "function",
       },
       addRoutes(routes = []) {
         routes.forEach(r => {
-          this.routes.push(makeRoute(r));
+          this.addRoute(r);
         });
+      },
+      addRoute(r) {
+        this.routes.push(makeRoute(r));
       }
     },
 

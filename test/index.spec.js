@@ -1,5 +1,5 @@
 /* global test expect describe beforeEach, afterEach */
-import Router from "../src";
+import Router from "../src/simple-router";
 
 const routes = [
   {
