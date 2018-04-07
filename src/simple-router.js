@@ -104,11 +104,12 @@ const isPromise = type => typeof type.then === "function",
         }
         return null;
       },
-      resolve(path /*, context = {}*/ ) {
+      resolve(path, action, /*, context = {}*/ ) {
         const routeInfo = this.match(path);
         if(routeInfo) {
           const ctx = {
             route: {
+              action,
               path: routeInfo.path,
               params: routeInfo.params
             }
@@ -141,8 +142,8 @@ const isPromise = type => typeof type.then === "function",
           history.block(options.block);
           this.stopHistoryListener = history.listen((location, action) => {
             const path = location.pathname || "/~error";
-            
-            this.resolve(path);
+            console.log(action);
+            this.resolve(path, action);
           });
         }
       },
