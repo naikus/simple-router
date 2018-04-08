@@ -2,6 +2,7 @@ import pathToRegexp from "path-to-regexp";
 import {createHashHistory, createBrowserHistory, createMemoryHistory} from "history";
 
 const isPromise = type => type && (typeof type.then) === "function",
+    identity = arg => arg,
     EventEmitterProto = {
       on(event, handler) {
         const handlers = this.handlers[event] || (this.handlers[event] = []), h = {event, handler};
@@ -118,7 +119,7 @@ const isPromise = type => type && (typeof type.then) === "function",
               controller = routeInfo.controller;
           // console.log("Emitting before-route", path);
           this.emitter.emit("before-route", path);
-          let ret = controller && controller(ctx);
+          let ret = controller ? controller(ctx) : identity(ctx);
           if(!isPromise(ret)) {
             ret = Promise.resolve(ret);
           }
