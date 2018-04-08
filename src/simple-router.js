@@ -1,7 +1,7 @@
 import pathToRegexp from "path-to-regexp";
 import {createHashHistory, createBrowserHistory, createMemoryHistory} from "history";
 
-const isPromise = type => typeof type.then === "function",
+const isPromise = type => type && (typeof type.then) === "function",
     EventEmitterProto = {
       on(event, handler) {
         const handlers = this.handlers[event] || (this.handlers[event] = []), h = {event, handler};
@@ -24,9 +24,7 @@ const isPromise = type => typeof type.then === "function",
       },
       emit(event, ...args) {
         let handlers = this.handlers[event] || [];
-        handlers.forEach(h => {
-          h.handler(event, ...args);
-        });
+        handlers.forEach(h => h.handler(event, ...args));
       }
     },
 
@@ -76,7 +74,7 @@ const isPromise = type => typeof type.then === "function",
 
     RouterProto = {
       on(evt, handler) {
-        this.emitter.on(evt, handler);
+        return this.emitter.on(evt, handler);
       },
       matches(path) {
         return this.routes.some(route => route.pattern.test(path));
@@ -104,18 +102,23 @@ const isPromise = type => typeof type.then === "function",
         }
         return null;
       },
-      resolve(path, action, /*, context = {}*/ ) {
+      resolve(path, action, context = {}) {
+        // console.log("Resolving ", path);
         const routeInfo = this.match(path);
         if(routeInfo) {
+          // console.log("Found routeInfo", path);
           const ctx = {
-            route: {
-              action,
-              path: routeInfo.path,
-              params: routeInfo.params
-            }
-          };
+                ...context,
+                route: {
+                  action,
+                  path: routeInfo.path,
+                  params: routeInfo.params
+                }
+              },
+              controller = routeInfo.controller;
+          // console.log("Emitting before-route", path);
           this.emitter.emit("before-route", path);
-          let ret = routeInfo.controller(ctx);
+          let ret = controller && controller(ctx);
           if(!isPromise(ret)) {
             ret = Promise.resolve(ret);
           }
@@ -123,26 +126,25 @@ const isPromise = type => typeof type.then === "function",
             this.current = routeInfo;
             return retVal;
           }).then(
-              retVal => this.emitter.emit("route", retVal),
-              rErr => this.emitter.emit("route-error", rErr)
+            retVal => this.emitter.emit("route", retVal),
+            rErr => this.emitter.emit("route-error", rErr)
           );
           return ret;
         }
         return Promise.reject({
-          message: `Route not found ${path}`, 
+          message: `Route not found ${path}`,
           path
         });
       },
-      route(path) {
-        this.history.push(path);
+      route(path, state) {
+        this.history.push(path, state);
       },
-      start(listener) {
+      start() {
         if(!this.history) {
           const {options} = this, history = this.history = createHistory(options.type, options);
           history.block(options.block);
           this.stopHistoryListener = history.listen((location, action) => {
             const path = location.pathname || "/~error";
-            console.log(action);
             this.resolve(path, action);
           });
         }

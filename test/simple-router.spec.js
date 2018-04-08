@@ -1,4 +1,4 @@
-/* global test expect describe beforeEach, afterEach */
+/* global jest setTimeout test expect describe beforeAll, afterAll */
 import Router from "../src/simple-router";
 
 const routes = [
@@ -10,39 +10,53 @@ const routes = [
         message: "hello"
       };
     }
+  },
+  {
+    path: "/hi/:name",
+    controller: context => {
+      const {route: {params}} = context;
+      return params;
+    }
   }
 ];
 
+// jest.setTimeout(10000);
+
 let router;
 
-beforeEach(() => {
+beforeAll(() => {
+  console.log("Before all");
   router = Router.create(routes, {
     type: "memory",
     getUserConfirmation(message, callback) {
       // setTimeout(() => {
-        const val = !!Math.round(Math.random());
-        console.log(message, val);
-        console.log(callback);
-        callback(val);
+      const val = !!Math.round(Math.random());
+      // console.log(message, val);
+      // console.log(callback);
+      callback(val);
       // }, 100);
     },
     block(location, action) {
-      console.log(location, action);
+      // console.log(location, action);
       return `Are you sure you want to go to ${location.pathname}`;
     }
   });
-  router.on("before-route", (e, path) => console.log("Before route", path));
-  router.on("route", (e, route) => console.log("Route", route));
-  router.on("route-error", (e, err) => console.log("Route error", err));
   router.start();
 });
 
-afterEach(() => {
+
+afterAll(() => {
   router.stop();
 });
 
+
 describe("Router tests", () => {
   test("Routes to a path", () => {
+    let subs = router.on("route", (event, ret) => {
+      subs.dispose();
+      expect(ret.context.route.path).toBe("/hello");
+      expect(ret.message).toBe("hello");
+    });
     router.route("/hello");
   });
 
@@ -66,5 +80,22 @@ describe("Router tests", () => {
     const routeInfo = router.match("/hello");
     expect(routeInfo).not.toBeNull();
     expect(routeInfo.path).toBe("/hello");
+  });
+
+  test("Route params extraction", () => {
+    const routeInfo = router.match("/hi/World");
+    expect(routeInfo).not.toBeNull();
+    expect(routeInfo.params).not.toBeNull();
+    expect(routeInfo.params.name).toBe("World");
+  });
+
+  test("Before route fired correctly", () => {
+    // console.log("Events before-route");
+    const subs = router.on("before-route", (event, path) => {
+      subs.dispose();
+      // console.log("before-route", path);
+      expect(path).not.toBeNull();
+    });
+    router.route("/hi/Events");
   });
 });
