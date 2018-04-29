@@ -1,4 +1,4 @@
-/* global jest setTimeout test expect describe beforeAll, afterAll */
+/* global jest setTimeout test expect describe beforeEach, afterEach */
 import Router from "../src/simple-router";
 
 const routes = [
@@ -6,7 +6,6 @@ const routes = [
     path: "/hello",
     controller: context => {
       return {
-        context,
         message: "hello"
       };
     }
@@ -17,6 +16,16 @@ const routes = [
       const {route: {params}} = context;
       return params;
     }
+  },
+  {
+    path: "/hola/:name",
+    controller: context => {
+      const {route: {params}} = context;
+      return {
+        redirect: `/hi/${params.name}`,
+        name: params.name
+      };
+    }
   }
 ];
 
@@ -24,8 +33,8 @@ const routes = [
 
 let router;
 
-beforeAll(() => {
-  console.log("Before all");
+beforeEach(() => {
+  // console.log("Before all");
   router = Router.create(routes, {
     type: "memory",
     getUserConfirmation(message, callback) {
@@ -45,19 +54,38 @@ beforeAll(() => {
 });
 
 
-afterAll(() => {
+afterEach(() => {
   router.stop();
 });
 
 
 describe("Router tests", () => {
   test("Routes to a path", () => {
-    let subs = router.on("route", (event, ret) => {
+    let subs = router.on("route", (event, context) => {
       subs.dispose();
-      expect(ret.context.route.path).toBe("/hello");
-      expect(ret.message).toBe("hello");
+      expect(context.route.path).toBe("/hello");
+      expect(context.message).toBe("hello");
     });
     router.route("/hello");
+  });
+
+  test("Redirects to correct route", () => {
+    let subs = router.on("route", (event, context) => {
+      // console.log(context);
+      subs.dispose();
+      expect(true).toBe(true);
+      expect(context.route.path).toBe("/hi/naikus");
+      expect(context.name).toBe("naikus");
+    });
+    router.route("/hola/naikus");
+  });
+
+  test("Throws route error event if route not found", () => {
+    let subs = router.on("route-error", (event, context) => {
+      subs.dispose();
+      expect(true);
+    });
+    router.route("/foo/bar");
   });
 
   test("Create router instance", () => {
