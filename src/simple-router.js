@@ -1,3 +1,4 @@
+/* global setTimeout console */
 import pathToRegexp from "path-to-regexp";
 import {createHashHistory, createBrowserHistory, createMemoryHistory} from "history";
 
@@ -59,14 +60,15 @@ const isPromise = type => type && (typeof type.then) === "function",
       type: "hash",
       hashType: "slash",
       getUserConfirmation(message, callback) {
-        callback(true);
-        /*
+        console.log(message);
+        // callback(true);
+        // /*
         setTimeout(() => {
           const val = !!Math.round(Math.random());
           console.log(message, val);
           callback(val);
         }, 1000);
-        */
+        // */
       },
       block(location, action) {
         return "Are you sure you want to leave this page?";
@@ -170,15 +172,14 @@ const isPromise = type => type && (typeof type.then) === "function",
       start() {
         if(!this.history) {
           const {options} = this, history = this.history = createHistory(options.type, options);
-          history.block(options.block);
+          // history.block(options.block);
           this.stopHistoryListener = history.listen((location, action) => {
+            // const unblock = history.block(options.block);
             const path = location.pathname || "/~error",
                 ret = this.resolve(path, action);
             ret.catch(rErr => {
               console.log(rErr);
-              this.emitter.emit("route-error", {
-                ...rErr
-              });
+              this.emitter.emit("route-error", rErr);
             });
           });
         }
