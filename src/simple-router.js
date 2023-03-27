@@ -1,4 +1,4 @@
-/* global setTimeout console */
+/* global */
 const {pathToRegexp} = require("path-to-regexp"),
     isPromise = type => type && (typeof type.then) === "function",
     identity = arg => arg,

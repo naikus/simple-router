@@ -7,20 +7,25 @@
 
   "globals": {
     "console": true,
-    "window": true,
-    "Promise": true
+    "Promise": true,
+    "require": true,
+    "module": true,
+    "exports": true,
+    "document": true,
+    "navigator": true,
+    "window": true
   },
 
   "parserOptions": {
-    "ecmaVersion": 8,
+    "ecmaVersion": 2018,
     "sourceType": "module",
     "ecmaFeatures": {
-      "experimentalObjectRestSpread": true,
-      "jsx": true
+      "experimentalObjectRestSpread": true
     }
   },
 
   "rules": {
+    "prefer-object-spread": ["warn"],
     "semi": [1, "always"],
     "linebreak-style": ["error", "unix"],
     "quotes": [1, "double", { "avoidEscape": true, "allowTemplateLiterals": true }],
@@ -45,14 +50,14 @@
       "requireReturn": false,
       "prefer": {"returns": "return"}
     }],
-    "no-console": 1,
+    "no-console": 0,
     "no-multiple-empty-lines": [1, { "max": 3 }],
     "comma-dangle": [2, "never"],
     "arrow-parens": [1, "as-needed", { "requireForBlockBody": false }],
     "one-var": [1, {
-      "var": "always",
-      "let": "always",
-      "const": "always"
+      "var": "consecutive",
+      "let": "consecutive",
+      "const": "consecutive"
     }],
     "keyword-spacing": ["warn", {"overrides": {
       "if": {"after": false},
