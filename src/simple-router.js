@@ -1,8 +1,6 @@
 /* global setTimeout console */
-import pathToRegexp from "path-to-regexp";
-import {createHashHistory, createBrowserHistory, createMemoryHistory} from "history";
-
-const isPromise = type => type && (typeof type.then) === "function",
+const {pathToRegexp} = require("path-to-regexp"),
+    isPromise = type => type && (typeof type.then) === "function",
     identity = arg => arg,
     EventEmitterProto = {
       on(event, handler) {
@@ -38,41 +36,87 @@ const isPromise = type => type && (typeof type.then) === "function",
       });
     },
 
-    createHistory = (type, options) => {
-      let history;
-      switch (type) {
-        case "browser":
-          history = createBrowserHistory(options);
-          break;
-        case "hash":
-          history = createHashHistory(options);
-          break;
-        case "memory":
-          history = createMemoryHistory(options);
-          break;
-        default:
-          history = createHashHistory(options);
-      }
-      return history;
+    createHistory = options => {
+      const noop = () => {};
+      let linkClicked = null,
+          listener = noop,
+          // running = true,
+          stack = [];
+
+      const hashListener = event => {
+            const hash = window.location.hash;
+            if(!hash) {
+              return;
+            }
+            const route = hash.substring(1);
+            if(linkClicked) {
+              // console.log("Link was clicked", linkClicked);
+              linkClicked = null;
+              stack.push(hash);
+              listener({route}, "PUSH");
+            }else {
+              // Back forward buttons were used
+              const index = stack.lastIndexOf(hash);
+              if(index !== -1) {
+                stack.splice(index + 1, stack.length - index);
+                listener({route}, "POP");
+              }else {
+                stack.push(hash);
+                listener({route}, "PUSH");
+              }
+            }
+            // console.log(stack);
+          },
+          clickListener = event => {
+            // console.log(event);
+            const {target: {href}} = event, current = stack[stack.length - 1];
+            if(href !== current) {
+              linkClicked = href;
+            }
+          };
+
+      return {
+        getSize() {
+          return stack.length;
+        },
+        listen(listnr) {
+          listener = listnr;
+          document.addEventListener("click", clickListener, true);
+          window.addEventListener("hashchange", hashListener);
+          return () => {
+            listener = noop;
+            window.removeEventListener("click", clickListener, true);
+            window.removeEventListener("hashchange", hashListener);
+          };
+        },
+        push(path) {
+          const currentPath = window.location.hash.substring(1);
+          linkClicked = "__PUSH";
+          if(currentPath === path) {
+            hashListener({});
+          }else {
+            window.location.hash = path;
+          }
+        },
+        pop(toPath) {
+          linkClicked = null;
+          if(!stack.length) {
+            return;
+          }
+          const path = toPath || stack[stack.length - 2];
+          // Correctly maintain backstack. This is not possible if toPath is provided.
+          if(toPath) {
+            window.location.hash = path;
+          }else {
+            window.history.go(-1);
+          }
+        }
+      };
     },
 
     routerDefaults = {
-      type: "hash",
-      hashType: "slash",
-      getUserConfirmation(message, callback) {
-        console.log(message);
-        // callback(true);
-        // /*
-        setTimeout(() => {
-          const val = !!Math.round(Math.random());
-          console.log(message, val);
-          callback(val);
-        }, 1000);
-        // */
-      },
-      block(location, action) {
-        return "Are you sure you want to leave this page?";
-      }
+      defaultRoute: "/",
+      errorRoute: "/~error"
     },
 
     RouterProto = {
@@ -98,9 +142,8 @@ const isPromise = type => type && (typeof type.then) === "function",
         });
         if(matchedRoute) {
           return {
-            path: path,
-            params: params,
-            controller: matchedRoute.controller
+            ...matchedRoute,
+            params: params
           };
         }
         return null;
@@ -109,13 +152,13 @@ const isPromise = type => type && (typeof type.then) === "function",
         // console.log("Resolving ", path);
         const routeInfo = this.match(path), origRoute = context.route || {};
         if(routeInfo) {
-          // console.log("Found routeInfo", path);
+          // console.log("Found routeInfo", path, routeInfo);
           const route = {
                 action,
-                // redirect: origRoute.redirect,
                 from: origRoute.from,
                 path: routeInfo.path,
-                params: routeInfo.params
+                params: routeInfo.params,
+                ...routeInfo
               },
               ctx = {
                 ...context,
@@ -128,12 +171,12 @@ const isPromise = type => type && (typeof type.then) === "function",
           if(!isPromise(ret)) {
             ret = Promise.resolve(ret);
           }
-          return ret.then(retVal => {
-            if(retVal.redirect) {
-              console.log(`Redirecting from ${routeInfo.path} to ${retVal.redirect}`);
-              return this.resolve(retVal.redirect, "REDIRECT", {
+          return ret.then((retVal = {}) => {
+            if(retVal.forward) {
+              console.debug(`Forwarding from ${routeInfo.path} to ${retVal.forward}`);
+              return this.resolve(retVal.forward, action, {
                 route: {
-                  // redirect: true,
+                  // forward: true,
                   from: routeInfo.path
                 }
               });
@@ -142,8 +185,10 @@ const isPromise = type => type && (typeof type.then) === "function",
               // console.log("Returning", retVal);
               this.emitter.emit("route", {
                 route,
+                state: this.state,
                 ...retVal
               });
+              this.clearState();
               return retVal;
             }
           });
@@ -166,19 +211,43 @@ const isPromise = type => type && (typeof type.then) === "function",
           path
         });
       },
-      route(path, state) {
+      setState(state) {
+        this.state = state;
+      },
+      clearState() {
+        this.state = {};
+      },
+      route(path, state = {}) {
+        // console.log(this.history.getSize());
+        this.setState(state);
         this.history.push(path, state);
+      },
+      back(toRoute, state = {}) {
+        this.setState(state);
+        this.history.pop(toRoute);
+      },
+      getBrowserRoute() {
+        const hash = window.location.hash;
+        if(hash) {
+          return hash.substring(1);
+        }
+        return null;
+      },
+      getCurrentRoute() {
+        return this.current;
       },
       start() {
         if(!this.history) {
-          const {options} = this, history = this.history = createHistory(options.type, options);
+          const {options} = this, history = this.history = createHistory(options.history),
+              {defaultRoute = "/", errorRoute = "/~error"} = options;
+
           // history.block(options.block);
           this.stopHistoryListener = history.listen((location, action) => {
             // const unblock = history.block(options.block);
-            const path = location.pathname || "/~error",
+            const path = location.route || errorRoute,
                 ret = this.resolve(path, action);
             ret.catch(rErr => {
-              console.log(rErr);
+              // console.log(rErr);
               this.emitter.emit("route-error", rErr);
             });
           });
@@ -198,12 +267,14 @@ const isPromise = type => type && (typeof type.then) === "function",
       },
       addRoute(r) {
         this.routes.push(makeRoute(r));
+        console.log(this.routes);
       }
     },
 
     makeRoute = route => {
       const keys = [], pattern = pathToRegexp(route.path, keys);
       return {
+        ...route,
         path: route.path,
         controller: route.controller,
         pattern,
@@ -212,18 +283,21 @@ const isPromise = type => type && (typeof type.then) === "function",
     };
 
 
-export default {
-  create(routes = [], options = {}) {
-    return Object.create(RouterProto, {
-      routes: {
-        value: routes.map(makeRoute)
-      },
-      options: {
-        value: Object.assign({}, routerDefaults, options)
-      },
-      emitter: {
-        value: createEventEmitter()
-      }
-    });
-  }
+module.exports = (routes = [], options = {}) => {
+  return Object.create(RouterProto, {
+    state: {
+      value: {},
+      writable: true,
+      readable: true
+    },
+    routes: {
+      value: routes.map(makeRoute)
+    },
+    options: {
+      value: Object.assign({}, routerDefaults, options)
+    },
+    emitter: {
+      value: createEventEmitter()
+    }
+  });
 };

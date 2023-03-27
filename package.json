@@ -23,7 +23,6 @@
   },
   "homepage": "https://github.com/naikus/simple-router#readme",
   "dependencies": {
-    "history": "~4.7.2",
     "path-to-regexp": "~2.0.0"
   },
   "devDependencies": {
