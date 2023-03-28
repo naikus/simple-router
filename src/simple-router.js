@@ -1,6 +1,7 @@
 /* global */
-const {pathToRegexp} = require("path-to-regexp"),
-    isPromise = type => type && (typeof type.then) === "function",
+import pathToRegexp from "path-to-regexp";
+
+const isPromise = type => type && (typeof type.then) === "function",
     identity = arg => arg,
     EventEmitterProto = {
       on(event, handler) {
