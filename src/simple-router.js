@@ -42,9 +42,14 @@ const isPromise = type => type && (typeof type.then) === "function",
       let linkClicked = null,
           listener = noop,
           // running = true,
-          stack = [];
+          stack = [],
+          ignoreHashChange = false;
 
       const hashListener = event => {
+            if(ignoreHashChange) {
+              ignoreHashChange = false;
+              return;
+            }
             const hash = window.location.hash;
             if(!hash) {
               return;
@@ -98,6 +103,11 @@ const isPromise = type => type && (typeof type.then) === "function",
           }else {
             window.location.hash = path;
           }
+        },
+        /* Set the path without calling the hash listener */
+        set(path) {
+          ignoreHashChange = true;
+          window.location.hash = path;
         },
         pop(toPath) {
           linkClicked = null;
@@ -180,6 +190,11 @@ const isPromise = type => type && (typeof type.then) === "function",
                   // forward: true,
                   from: routeInfo.path
                 }
+              }).then(fRoute => {
+                // set the browser hash to correct value for forwarded route
+                // without invoking the hashchange listener
+                this.history.set(retVal.forward);
+                return fRoute;
               });
             }else {
               this.current = routeInfo;
