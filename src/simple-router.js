@@ -183,7 +183,10 @@ const isPromise = type => type && (typeof type.then) === "function",
           const route = {
                 action,
                 from: origRoute,
-                ...routeInfo
+                path: routeInfo.path,
+                runtimePath: routeInfo.runtimePath,
+                params: routeInfo.params
+                // ...routeInfo
               },
               ctx = {
                 ...context,
@@ -212,11 +215,12 @@ const isPromise = type => type && (typeof type.then) === "function",
                 return fRoute;
               });
             }else {
-              this.current = routeInfo;
+              route.state = this.state;
+              this.current = route;
               // console.log("Returning", retVal);
               this.emitter.emit("route", {
                 route,
-                state: this.state,
+                // state: this.state,
                 ...retVal
               });
               this.clearState();
