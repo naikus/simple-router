@@ -1,4 +1,4 @@
-/* global */
+/* global URL */
 import pathToRegexp from "path-to-regexp";
 
 const isPromise = type => type && (typeof type.then) === "function",
@@ -47,16 +47,16 @@ const isPromise = type => type && (typeof type.then) === "function",
 
       const hashListener = event => {
             if(ignoreHashChange) {
+              console.debug("ignoring hash change", event);
               ignoreHashChange = false;
               return;
             }
-            const hash = window.location.hash;
+            const hash = event ? new URL(event.newURL).hash : window.location.hash;
             if(!hash) {
               return;
             }
             const route = hash.substring(1);
             if(linkClicked) {
-              // console.log("Link was clicked", linkClicked);
               linkClicked = null;
               stack.push(hash);
               listener({route}, "PUSH");
@@ -99,13 +99,14 @@ const isPromise = type => type && (typeof type.then) === "function",
           const currentPath = window.location.hash.substring(1);
           linkClicked = "__PUSH";
           if(currentPath === path) {
-            hashListener({});
-          }else {
-            window.location.hash = path;
+            hashListener();
+            return;
           }
+          window.location.hash = path;
         },
         /* Set the path without calling the hash listener */
         set(path) {
+          // console.log("Setting path", path);
           ignoreHashChange = true;
           window.location.hash = path;
         },
@@ -154,6 +155,7 @@ const isPromise = type => type && (typeof type.then) === "function",
         if(matchedRoute) {
           return {
             ...matchedRoute,
+            runtimePath: path,
             params: params
           };
         }
@@ -161,14 +163,26 @@ const isPromise = type => type && (typeof type.then) === "function",
       },
       resolve(path, action, context = {}) {
         // console.log("Resolving ", path);
-        const routeInfo = this.match(path), origRoute = context.route || {};
+        const {current = {}} = this, routeInfo = this.match(path),
+            origRoute = context.route || {
+              path: current.path,
+              params: current.params
+            };
+
+        // Check if we have a current route and it's same as the one we are trying to resolve
+        if(this.current) {
+          // console.log("Current route", this.current);
+          const {runtimePath} = this.current;
+          if(runtimePath === path) {
+            return Promise.resolve();
+          }
+        }
+
         if(routeInfo) {
           // console.log("Found routeInfo", path, routeInfo);
           const route = {
                 action,
                 from: origRoute,
-                path: routeInfo.path,
-                params: routeInfo.params,
                 ...routeInfo
               },
               ctx = {
@@ -187,8 +201,9 @@ const isPromise = type => type && (typeof type.then) === "function",
               console.debug(`Forwarding from ${routeInfo.path} to ${retVal.forward}`);
               return this.resolve(retVal.forward, action, {
                 route: {
-                  // forward: true,
-                  from: routeInfo.path
+                  forwarded: true,
+                  path: routeInfo.path,
+                  params: routeInfo.params
                 }
               }).then(fRoute => {
                 // set the browser hash to correct value for forwarded route
@@ -298,8 +313,19 @@ const isPromise = type => type && (typeof type.then) === "function",
       };
     };
 
+/**
+ * @typedef {Object} Route
+ * @property {string} path
+ * @property {function} controller
+ */
 
-module.exports = (routes = [], options = {}) => {
+/**
+ * Create a new Router instance
+ * @param {Array<Route>} routes An array of routes
+ * @param {Object} options Router options
+ * @return {Router} A newly created Router instance
+ */
+function createRouter(routes = [], options = {}) {
   return Object.create(RouterProto, {
     state: {
       value: {},
@@ -316,4 +342,6 @@ module.exports = (routes = [], options = {}) => {
       value: createEventEmitter()
     }
   });
-};
+}
+
+export default createRouter;
