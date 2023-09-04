@@ -166,7 +166,7 @@ const isPromise = type => type && (typeof type.then) === "function",
           // console.log("Found routeInfo", path, routeInfo);
           const route = {
                 action,
-                from: origRoute.from,
+                from: origRoute,
                 path: routeInfo.path,
                 params: routeInfo.params,
                 ...routeInfo
