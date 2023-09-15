@@ -52,7 +52,8 @@ const isPromise = type => type && (typeof type.then) === "function",
               return;
             }
             const hash = event ? new URL(event.newURL).hash : window.location.hash;
-            if(!hash) {
+            // Only handle hash changes that start with #/
+            if(!hash || hash.indexOf("#/") !== 0) {
               return;
             }
             const route = hash.substring(1);
@@ -103,6 +104,10 @@ const isPromise = type => type && (typeof type.then) === "function",
             return;
           }
           window.location.hash = path;
+        },
+        replace(path) {
+          linkClicked = "__REPLACE";
+          window.location.replace(`#${path}`);
         },
         /* Set the path without calling the hash listener */
         set(path) {
@@ -166,7 +171,8 @@ const isPromise = type => type && (typeof type.then) === "function",
         const {current = {}} = this, routeInfo = this.match(path),
             origRoute = context.route || {
               path: current.path,
-              params: current.params
+              params: current.params,
+              runtimePath: current.runtimePath
             };
 
         // Check if we have a current route and it's same as the one we are trying to resolve
@@ -252,10 +258,14 @@ const isPromise = type => type && (typeof type.then) === "function",
       clearState() {
         this.state = {};
       },
-      route(path, state = {}) {
+      route(path, state = {}, replace = false) {
         // console.log(this.history.getSize());
         this.setState(state);
-        this.history.push(path, state);
+        if(replace) {
+          this.history.replace(path);
+        }else {
+          this.history.push(path, state);
+        }
       },
       back(toRoute, state = {}) {
         this.setState(state);
