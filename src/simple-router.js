@@ -271,6 +271,12 @@ const isPromise = type => type && (typeof type.then) === "function",
         this.setState(state);
         this.history.pop(toRoute);
       },
+      set(path, state) {
+        if(state) {
+          this.setState(state);
+        }
+        this.history.set(path);
+      },
       getBrowserRoute() {
         const hash = window.location.hash;
         if(hash) {
