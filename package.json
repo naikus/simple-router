@@ -2,7 +2,7 @@
   "name": "simple-router",
   "version": "1.0.0-alpha",
   "description": "Simple and minimal routing library for react and other SPAs",
-  "main": "lib/simple-router.js",
+  "main": "src/simple-router.js",
   "scripts": {
     "test": "jest",
     "build": "babel src -d lib"
@@ -22,20 +22,21 @@
     "url": "https://github.com/naikus/simple-router/issues"
   },
   "homepage": "https://github.com/naikus/simple-router#readme",
-  "dependencies": {
-    "path-to-regexp": "~2.0.0"
-  },
   "devDependencies": {
-    "@babel/cli": "^7.19.3",
-    "@babel/core": "^7.20.5",
-    "@babel/plugin-proposal-object-rest-spread": "~7.4.3",
-    "@babel/plugin-transform-block-scoping": "~7.4.0",
-    "@babel/plugin-transform-modules-umd": "~7.2.0",
-    "@babel/preset-env": "~7.5.5",
+    "@babel/cli": "^7.25.6",
+    "@babel/core": "^7.25.2",
+    "@babel/plugin-proposal-object-rest-spread": "^7.20.7",
+    "@babel/plugin-transform-block-scoping": "^7.25.0",
+    "@babel/plugin-transform-modules-umd": "^7.24.7",
+    "@babel/preset-env": "^7.25.4",
+    "@tsconfig/recommended": "^1.0.7",
     "eslint": "^7.9.0",
     "eslint-config-google": "~0.9.1",
     "eslint-plugin-promise": "~3.6.0",
     "eslint-plugin-standard": "~3.0.1",
     "jest": "^29.3.1"
+  },
+  "dependencies": {
+    "path-to-regexp": "^8.1.0"
   }
 }

@@ -1,5 +1,5 @@
-/* global jest setTimeout test expect describe beforeEach, afterEach */
-import Router from "../src/simple-router";
+/* @global jest setTimeout test expect describe beforeEach, afterEach */
+import create from "../src/simple-router";
 
 const routes = [
   {
@@ -35,7 +35,7 @@ let router;
 
 beforeEach(() => {
   // console.log("Before all");
-  router = Router.create(routes, {
+  router = create(routes, {
     type: "memory",
     getUserConfirmation(message, callback) {
       // setTimeout(() => {

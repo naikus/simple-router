@@ -1,5 +1,12 @@
 /* global URL */
-import pathToRegexp from "path-to-regexp";
+import {pathToRegexp} from "path-to-regexp";
+
+/**
+ * @typedef {import("./types").RouteDefn} RouteDefn
+ * @typedef {import("./types").Router} Router
+ * @typedef {import("./types").RouteInfo} RouteInfo
+ * @typedef {import("./types").RouteAction} RouteAction
+ */
 
 const isPromise = type => type && (typeof type.then) === "function",
     identity = arg => arg,
@@ -7,25 +14,24 @@ const isPromise = type => type && (typeof type.then) === "function",
       on(event, handler) {
         const handlers = this.handlers[event] || (this.handlers[event] = []), h = {event, handler};
         handlers.push(h);
-        return {
-          dispose() {
-            const index = handlers.indexOf(h);
-            if(index !== -1) {
-              handlers.splice(index, 1);
-            }
+        return function() {
+          const index = handlers.indexOf(h);
+          if(index !== -1) {
+            handlers.splice(index, 1);
           }
         };
       },
       once(event, handler) {
         let subs;
         subs = this.on(event, (...args) => {
-          subs.dispose();
+          subs();
           handler(event, ...args);
         });
+        return subs;
       },
       emit(event, ...args) {
         let handlers = this.handlers[event] || [];
-        handlers.forEach(h => h.handler(event, ...args));
+        handlers.forEach(h => h.handler(...args));
       }
     },
 
@@ -38,7 +44,7 @@ const isPromise = type => type && (typeof type.then) === "function",
     },
 
     createHistory = options => {
-      const noop = () => {};
+      const noop = (route, action) => {};
       let linkClicked = null,
           listener = noop,
           // running = true,
@@ -136,17 +142,26 @@ const isPromise = type => type && (typeof type.then) === "function",
       errorRoute: "/~error"
     },
 
+    /**
+     * @type {Partial<Router>}
+     */
     RouterProto = {
       on(evt, handler) {
         return this.emitter.on(evt, handler);
       },
+      once(evt, handler) {
+        return this.emitter.once(evt, handler);
+      },
       matches(path) {
-        return this.routes.some(route => route.pattern.test(path));
+        // @ts-ignore
+        return this.routes.some(route => route.pattern.regexp.test(path));
       },
       match(path) {
         let params, matchedRoute;
+        // @ts-ignore
         this.routes.some(route => {
-          const res = route.pattern.exec(path);
+          // @ts-ignore
+          const res = route.pattern.regexp.exec(path);
           if(res) {
             matchedRoute = route;
             params = {};
@@ -159,6 +174,7 @@ const isPromise = type => type && (typeof type.then) === "function",
         });
         if(matchedRoute) {
           return {
+            // @ts-ignore
             ...matchedRoute,
             runtimePath: path,
             params: params
@@ -168,6 +184,7 @@ const isPromise = type => type && (typeof type.then) === "function",
       },
       resolve(path, action, context = {}) {
         // console.log("Resolving ", path);
+        // @ts-ignore
         const {current = {}} = this, routeInfo = this.match(path),
             origRoute = context.route || {
               path: current.path,
@@ -208,6 +225,7 @@ const isPromise = type => type && (typeof type.then) === "function",
           return ret.then((retVal = {}) => {
             if(retVal.forward) {
               console.debug(`Forwarding from ${routeInfo.path} to ${retVal.forward}`);
+              // @ts-ignore
               return this.resolve(retVal.forward, action, {
                 route: {
                   forwarded: true,
@@ -229,6 +247,7 @@ const isPromise = type => type && (typeof type.then) === "function",
                 // state: this.state,
                 ...retVal
               });
+              // @ts-ignore
               this.clearState();
               return retVal;
             }
@@ -260,6 +279,7 @@ const isPromise = type => type && (typeof type.then) === "function",
       },
       route(path, state = {}, replace = false) {
         // console.log(this.history.getSize());
+        // @ts-ignore
         this.setState(state);
         if(replace) {
           this.history.replace(path);
@@ -268,11 +288,13 @@ const isPromise = type => type && (typeof type.then) === "function",
         }
       },
       back(toRoute, state = {}) {
+        // @ts-ignore
         this.setState(state);
         this.history.pop(toRoute);
       },
       set(path, state) {
         if(state) {
+          // @ts-ignore
           this.setState(state);
         }
         this.history.set(path);
@@ -296,6 +318,7 @@ const isPromise = type => type && (typeof type.then) === "function",
           this.stopHistoryListener = history.listen((location, action) => {
             // const unblock = history.block(options.block);
             const path = location.route || errorRoute,
+                // @ts-ignore
                 ret = this.resolve(path, action);
             ret.catch(rErr => {
               // console.log(rErr);
@@ -313,17 +336,19 @@ const isPromise = type => type && (typeof type.then) === "function",
       },
       addRoutes(routes = []) {
         routes.forEach(r => {
+          // @ts-ignore
           this.addRoute(r);
         });
+        console.debug(this.routes);
       },
       addRoute(r) {
+        // @ts-ignore
         this.routes.push(makeRoute(r));
-        console.log(this.routes);
       }
     },
 
     makeRoute = route => {
-      const keys = [], pattern = pathToRegexp(route.path, keys);
+      const keys = [], pattern = pathToRegexp(route.path, {});
       return {
         ...route,
         path: route.path,
@@ -350,6 +375,7 @@ function createRouter(routes = [], options = {}) {
     state: {
       value: {},
       writable: true,
+      // @ts-ignore
       readable: true
     },
     routes: {
