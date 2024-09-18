@@ -154,14 +154,14 @@ const isPromise = type => type && (typeof type.then) === "function",
       },
       matches(path) {
         // @ts-ignore
-        return this.routes.some(route => route.pattern.regexp.test(path));
+        return this.routes.some(route => route.regexp.test(path));
       },
       match(path) {
         let params, matchedRoute;
         // @ts-ignore
         this.routes.some(route => {
           // @ts-ignore
-          const res = route.pattern.regexp.exec(path);
+          const res = route.regexp.exec(path);
           if(res) {
             matchedRoute = route;
             params = {};
@@ -348,12 +348,12 @@ const isPromise = type => type && (typeof type.then) === "function",
     },
 
     makeRoute = route => {
-      const keys = [], pattern = pathToRegexp(route.path, {});
+      const {regexp, keys} = pathToRegexp(route.path, {});
       return {
         ...route,
         path: route.path,
         controller: route.controller,
-        pattern,
+        regexp,
         keys
       };
     };
