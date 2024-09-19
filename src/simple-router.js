@@ -169,6 +169,7 @@ const isPromise = type => type && (typeof type.then) === "function",
             matchedRoute = route;
             params = {};
             route.keys.forEach((key, i) => {
+              // console.log(key.name, res[i+1]);
               params[key.name] = res[i + 1];
             });
             return true;
@@ -227,7 +228,7 @@ const isPromise = type => type && (typeof type.then) === "function",
           }
           return ret.then((retVal = {}) => {
             if(retVal.forward) {
-              console.debug(`Forwarding from ${routeInfo.path} to ${retVal.forward}`);
+              console.debug(`Forwarding from ${routeInfo.runtimePath} to ${retVal.forward}`);
               this.current = route;
               // @ts-ignore
               return this.resolve(retVal.forward, action, {
@@ -352,6 +353,7 @@ const isPromise = type => type && (typeof type.then) === "function",
 
     makeRoute = route => {
       const {regexp, keys} = pathToRegexp(route.path);
+      // console.log(pathToRegexp(route.path));
       return {
         ...route,
         path: route.path,
