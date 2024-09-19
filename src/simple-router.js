@@ -116,10 +116,13 @@ const isPromise = type => type && (typeof type.then) === "function",
           window.location.replace(`#${path}`);
         },
         /* Set the path without calling the hash listener */
-        set(path) {
+        set(path, push = false) {
           // console.log("Setting path", path);
           ignoreHashChange = true;
           window.location.hash = path;
+          if(push) {
+            stack.push(window.location.hash);
+          }
         },
         pop(toPath) {
           linkClicked = null;
@@ -154,14 +157,14 @@ const isPromise = type => type && (typeof type.then) === "function",
       },
       matches(path) {
         // @ts-ignore
-        return this.routes.some(route => route.regexp.test(path));
+        return this.routes.some(route => route.pattern.test(path));
       },
       match(path) {
         let params, matchedRoute;
         // @ts-ignore
         this.routes.some(route => {
           // @ts-ignore
-          const res = route.regexp.exec(path);
+          const res = route.pattern.exec(path);
           if(res) {
             matchedRoute = route;
             params = {};
@@ -225,6 +228,7 @@ const isPromise = type => type && (typeof type.then) === "function",
           return ret.then((retVal = {}) => {
             if(retVal.forward) {
               console.debug(`Forwarding from ${routeInfo.path} to ${retVal.forward}`);
+              this.current = route;
               // @ts-ignore
               return this.resolve(retVal.forward, action, {
                 route: {
@@ -235,13 +239,12 @@ const isPromise = type => type && (typeof type.then) === "function",
               }).then(fRoute => {
                 // set the browser hash to correct value for forwarded route
                 // without invoking the hashchange listener
-                this.history.set(retVal.forward);
+                this.history.set(retVal.forward, true);
                 return fRoute;
               });
             }else {
               route.state = this.state;
               this.current = route;
-              // console.log("Returning", retVal);
               this.emitter.emit("route", {
                 route,
                 // state: this.state,
@@ -348,12 +351,12 @@ const isPromise = type => type && (typeof type.then) === "function",
     },
 
     makeRoute = route => {
-      const {regexp, keys} = pathToRegexp(route.path, {});
+      const {regexp, keys} = pathToRegexp(route.path);
       return {
         ...route,
         path: route.path,
         controller: route.controller,
-        regexp,
+        pattern: regexp,
         keys
       };
     };
