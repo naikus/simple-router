@@ -70,3 +70,5 @@ export interface Router {
   addRoutes(routes: RouteDefn[]): void;
   addRoute(route: RouteDefn): void;
 }
+
+declare function create(routes: Array<RouteDefn>, options: any): Router;

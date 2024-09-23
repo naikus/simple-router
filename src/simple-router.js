@@ -6,6 +6,7 @@ import {pathToRegexp} from "path-to-regexp";
  * @typedef {import("./types").Router} Router
  * @typedef {import("./types").RouteInfo} RouteInfo
  * @typedef {import("./types").RouteAction} RouteAction
+ * @typedef {import("./types").create} createRouter
  */
 
 const isPromise = type => type && (typeof type.then) === "function",
@@ -140,6 +141,14 @@ const isPromise = type => type && (typeof type.then) === "function",
       };
     },
 
+    callController = (controller, context) => {
+      let ret = typeof controller === "function" ? controller(context) : identity(context);
+      if(!isPromise(ret)) {
+        ret = Promise.resolve(ret);
+      }
+      return ret;
+    },
+
     routerDefaults = {
       defaultRoute: "/",
       errorRoute: "/~error"
@@ -163,7 +172,6 @@ const isPromise = type => type && (typeof type.then) === "function",
         let params, matchedRoute;
         // @ts-ignore
         this.routes.some(route => {
-          // @ts-ignore
           const res = route.pattern.exec(path);
           if(res) {
             matchedRoute = route;
@@ -196,16 +204,29 @@ const isPromise = type => type && (typeof type.then) === "function",
               runtimePath: current.runtimePath
             };
 
-        // Check if we have a current route and it's same as the one we are trying to resolve
-        if(this.current) {
-          // console.log("Current route", this.current);
-          const {runtimePath} = this.current;
-          if(runtimePath === path) {
-            return Promise.resolve();
-          }
-        }
-
         if(routeInfo) {
+          // Check if we have a current route and it's same as the one we are trying to resolve
+          if(this.current) {
+            // console.log("Current route", this.current);
+            const {runtimePath} = this.current;
+            if(runtimePath === path) {
+              const ret = callController(routeInfo.controller, {
+                ...context,
+                route: {
+                  ...this.current,
+                  params: routeInfo.params
+                }
+              });
+              return ret.then(retVal => {
+                this.emitter.emit("route", {
+                  route: this.current,
+                  ...retVal
+                });
+                return retVal;
+              });
+            }
+          }
+
           // console.log("Found routeInfo", path, routeInfo);
           const route = {
                 action,
@@ -216,20 +237,16 @@ const isPromise = type => type && (typeof type.then) === "function",
                 // ...routeInfo
               },
               ctx = {
-                ...context,
+                // ...context,
                 route
               },
               controller = routeInfo.controller;
           // console.log("Route", route);
           this.emitter.emit("before-route", path);
-          let ret = controller ? controller(ctx) : identity(ctx);
-          if(!isPromise(ret)) {
-            ret = Promise.resolve(ret);
-          }
+          let ret = callController(controller, ctx);
           return ret.then((retVal = {}) => {
             if(retVal.forward) {
-              console.debug(`Forwarding from ${routeInfo.runtimePath} to ${retVal.forward}`);
-              this.current = route;
+              console.debug(`Forwarding from ${routeInfo.path} to ${retVal.forward}`);
               // @ts-ignore
               return this.resolve(retVal.forward, action, {
                 route: {
@@ -238,14 +255,15 @@ const isPromise = type => type && (typeof type.then) === "function",
                   params: routeInfo.params
                 }
               }).then(fRoute => {
-                // set the browser hash to correct value for forwarded route
-                // without invoking the hashchange listener
+                // set the browser hash to correct value for forwarded route while pushing
+                // onto the stack (second param) without invoking the hashchange listener
                 this.history.set(retVal.forward, true);
                 return fRoute;
               });
             }else {
               route.state = this.state;
               this.current = route;
+              // console.log("Returning", retVal);
               this.emitter.emit("route", {
                 route,
                 // state: this.state,
@@ -348,6 +366,7 @@ const isPromise = type => type && (typeof type.then) === "function",
       addRoute(r) {
         // @ts-ignore
         this.routes.push(makeRoute(r));
+        console.log(this.routes);
       }
     },
 
@@ -363,19 +382,14 @@ const isPromise = type => type && (typeof type.then) === "function",
       };
     };
 
-/**
- * @typedef {Object} Route
- * @property {string} path
- * @property {function} controller
- */
 
 /**
- * Create a new Router instance
- * @param {Array<Route>} routes An array of routes
- * @param {Object} options Router options
- * @return {Router} A newly created Router instance
+ * @type {createRouter}
+ * @param {Array<RouteDefn>} routes
+ * @param {any} options
+ * @return {Router}
  */
-function createRouter(routes = [], options = {}) {
+export default function createRouter(routes = [], options = {}) {
   return Object.create(RouterProto, {
     state: {
       value: {},
@@ -387,12 +401,10 @@ function createRouter(routes = [], options = {}) {
       value: routes.map(makeRoute)
     },
     options: {
-      value: Object.assign({}, routerDefaults, options)
+      value: {...routerDefaults, ...options}
     },
     emitter: {
       value: createEventEmitter()
     }
   });
 }
-
-export default createRouter;
