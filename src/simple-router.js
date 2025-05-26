@@ -99,7 +99,7 @@ const isPromise = type => type && (typeof type.then) === "function",
           window.addEventListener("hashchange", hashListener);
           return () => {
             listener = noop;
-            window.removeEventListener("click", clickListener, true);
+            document.removeEventListener("click", clickListener, true);
             window.removeEventListener("hashchange", hashListener);
           };
         },
@@ -111,6 +111,8 @@ const isPromise = type => type && (typeof type.then) === "function",
             return;
           }
           window.location.hash = path;
+          // Uncomment this ONLY for running tests (JSDOM does not support hashchange event)
+          // hashListener();
         },
         replace(path) {
           linkClicked = "__REPLACE";
@@ -214,7 +216,8 @@ const isPromise = type => type && (typeof type.then) === "function",
                 ...context,
                 route: {
                   ...this.current,
-                  params: routeInfo.params
+                  params: routeInfo.params,
+                  state: this.state
                 }
               });
               return ret.then(retVal => {
@@ -233,7 +236,8 @@ const isPromise = type => type && (typeof type.then) === "function",
                 from: origRoute,
                 path: routeInfo.path,
                 runtimePath: routeInfo.runtimePath,
-                params: routeInfo.params
+                params: routeInfo.params,
+                state: this.state
                 // ...routeInfo
               },
               ctx = {
@@ -261,7 +265,7 @@ const isPromise = type => type && (typeof type.then) === "function",
                 return fRoute;
               });
             }else {
-              route.state = this.state;
+              // route.state = this.state;
               this.current = route;
               // console.log("Returning", retVal);
               this.emitter.emit("route", {

@@ -1,4 +1,9 @@
-/* @global jest setTimeout test expect describe beforeEach, afterEach */
+/**
+ * @jest-environment jsdom
+ * @jest-environment-options {"url": "https://localhost:8080"}
+ */
+import {test, expect, beforeEach, afterEach, describe} from "@jest/globals";
+import {log} from "console";
 import create from "../src/simple-router";
 
 const routes = [
@@ -11,14 +16,21 @@ const routes = [
     }
   },
   {
-    path: "/hi/:name",
+    path: "/hi/{:name}",
     controller: context => {
       const {route: {params}} = context;
       return params;
     }
   },
   {
-    path: "/hola/:name",
+    path: "/state-test",
+    controller: context => {
+      const {route} = context;
+      return route.state;
+    }
+  },
+  {
+    path: "/hola/{:name}",
     controller: context => {
       const {route: {params}} = context;
       return {
@@ -36,19 +48,6 @@ let router;
 beforeEach(() => {
   // console.log("Before all");
   router = create(routes, {
-    type: "memory",
-    getUserConfirmation(message, callback) {
-      // setTimeout(() => {
-      const val = !!Math.round(Math.random());
-      // console.log(message, val);
-      // console.log(callback);
-      callback(val);
-      // }, 100);
-    },
-    block(location, action) {
-      // console.log(location, action);
-      return `Are you sure you want to go to ${location.pathname}`;
-    }
   });
   router.start();
 });
@@ -58,22 +57,22 @@ afterEach(() => {
   router.stop();
 });
 
-
 describe("Router tests", () => {
   test("Routes to a path", () => {
-    let subs = router.on("route", (event, context) => {
-      subs.dispose();
+    let dispose = router.on("route", (context) => {
+      console.log("Routes to path", context);
+      dispose();
       expect(context.route.path).toBe("/hello");
       expect(context.message).toBe("hello");
     });
     router.route("/hello");
   });
 
-  test("Redirects to correct route", () => {
-    let subs = router.on("route", (event, context) => {
-      // console.log(context);
-      subs.dispose();
-      expect(true).toBe(true);
+  test("Redirects to correct route", async () => {
+    let dispose = router.on("route", (context) => {
+      console.log("Redirects to correct route", context);
+      dispose();
+      // expect(true).toBe(true);
       expect(context.route.path).toBe("/hi/naikus");
       expect(context.name).toBe("naikus");
     });
@@ -81,8 +80,9 @@ describe("Router tests", () => {
   });
 
   test("Throws route error event if route not found", () => {
-    let subs = router.on("route-error", (event, context) => {
-      subs.dispose();
+    let dispose = router.on("route-error", (context) => {
+      console.log("Throws route error", context);
+      dispose();
       expect(true);
     });
     router.route("/foo/bar");
@@ -117,10 +117,21 @@ describe("Router tests", () => {
     expect(routeInfo.params.name).toBe("World");
   });
 
+  test("Controller gets recent state", () => {
+    const dispose = router.on("route", (context) => {
+      console.log("Controller gets state", context);
+      dispose();
+      console.log("Context is", context);
+      expect(context.hello).toBe("World");
+    });
+    router.route("/state-test", {hello: "World"});
+  });
+
   test("Before route fired correctly", () => {
     // console.log("Events before-route");
-    const subs = router.on("before-route", (event, path) => {
-      subs.dispose();
+    const dispose = router.on("before-route", (path) => {
+      console.log("Before route", path);
+      dispose();
       // console.log("before-route", path);
       expect(path).not.toBeNull();
     });
