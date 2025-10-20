@@ -1,30 +1,76 @@
 export type RouteAction = "PUSH" | "POP" | null;
 
-export interface RouteDefn {
+export interface Route {
+  forwarded?: boolean;
+  action?: RouteAction;
   path: string;
-  controller: <T>(context: any) => Promise<T> | T;
+  from?: Route;
+  params?: Record<string, string>;
 }
 
-export interface RouteInfo {
-  action: string;
+export interface RouteContext {
+  // state: "abort" | "in-process" | "done";
+  // signal?: AbortSignal,
+  route?: Route;
+  [propName: string]: any;
+}
+
+
+export type RouteControllerOpts = {
+  signal?: AbortSignal
+}
+export interface RouteDefn {
   path: string;
-  runtimePath: string;
-  from?: RouteInfo;
-  params: Record<string, string>;
-  controller: (context: any) => Promise<any>;
+  controller: <T>(context: RouteContext, opts: RouteControllerOpts) => Promise<T> | T;
+}
+
+export interface RouteInfo extends RouteDefn {
+  // action: string;
+  // path: string;
+  // runtimePath: string;
+  // from?: RouteInfo;
+  // params?: Record<string, string>;
+  // controller: (context: any) => Promise<any>;
   pattern: RegExp;
   keys: any;
 }
 
 export type RouteEventHandler = (...args: any) => void;
+export type RouteHistoryListener = (route: string, action: RouteAction) => void;
+
+export interface RouteHistory {
+  getSize: () => number;
+  /**
+   * Start listening to hash based route history
+   * @param listener 
+   * @returns {Function} Un-subscriber
+   */
+  listen: (listener: RouteHistoryListener) => Function;
+  push: (path: string) => void;
+  replace: (path: string) => void;
+  /**
+   * Set a path and push it on the stack without calling the hash listener
+   * @param path 
+   * @param push 
+   * @return {void}
+   */
+  set: (path: string, push?: boolean) => void;
+
+  /**
+   * Pop from the history
+   * @param toPath 
+   * @return {void}
+   */
+  pop: (toPath?: string) => void;
+}
 
 export interface Router {
   // emitter: any;
   // current: RouteInfo;
   [propName: string]: any;
-  state?: any;
-  routes: Array<RouteInfo>;
-  options: any;
+  // state?: any;
+  // routes: Array<RouteInfo>;
+  // options: any;
 
   /**
    * Listen for router event.
@@ -39,9 +85,15 @@ export interface Router {
    * @param {string} event The event name
    * @param {function} handler The handler
    * @returns {function} The unsubscribe function
-   * @see on
+   * @see #on
    */
   once(event: string, handler: RouteEventHandler): Function;
+
+  /**
+   * Detemines if the specified path matches a route defined with the router
+   * @param {string} path The path to match (runtime path)
+   * @returns {true} If there's a match
+   */
   matches(path: string): boolean;
   
   /**
@@ -50,6 +102,7 @@ export interface Router {
    * @returns {RouteInfo|null}
    */
   match(path: string): RouteInfo | null;
+  getRoute(path: string): Route | null;
 
   /**
    * Resolve a route specified by path, calling the controller for the rute defn if found
@@ -57,9 +110,9 @@ export interface Router {
    * @param {string} action "PUSH" | "POP"
    * @param {any} context 
    */
-  resolve(path: string, action: RouteAction, context?: any): Promise<any>;
-  setState(state: any): void;
-  clearState(): void;
+  // resolve(path: string, action: RouteAction, context?: any): Promise<any>;
+  // setState(state: any): void;
+  // clearState(): void;
   route(path: string, state?: any, replace?: boolean): void;
   back(toPath?: string, state?: any): void;
   set(routePath: string, state?: any): void;
