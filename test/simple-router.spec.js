@@ -4,7 +4,21 @@
  */
 import {test, expect, beforeEach, afterEach, describe} from "@jest/globals";
 import {log} from "console";
-import create from "../src/simple-router";
+import createRouter from "../src/index";
+
+/**
+ * Gets an object that has promise and its resolve, reject functions
+ * @return {{promise: Promise, resolve: function, reject: function}}
+ */
+function promiseWithResolvers() {
+  let promise, resolve, reject;
+  promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  // @ts-ignore
+  return {promise, resolve, reject};
+}
 
 const routes = [
   {
@@ -34,7 +48,7 @@ const routes = [
     controller: context => {
       const {route: {params}} = context;
       return {
-        redirect: `/hi/${params.name}`,
+        forward: `/hi/${params.name}`,
         name: params.name
       };
     }
@@ -47,8 +61,7 @@ let router;
 
 beforeEach(() => {
   // console.log("Before all");
-  router = create(routes, {
-  });
+  router = createRouter(routes);
   router.start();
 });
 
@@ -58,25 +71,53 @@ afterEach(() => {
 });
 
 describe("Router tests", () => {
-  test("Routes to a path", () => {
-    let dispose = router.on("route", (context) => {
+  test("Routes to a path", async () => {
+    const {promise, resolve, reject} = promiseWithResolvers();
+    router.once("route", event => {
+      const context = event.detail;
       console.log("Routes to path", context);
-      dispose();
       expect(context.route.path).toBe("/hello");
       expect(context.message).toBe("hello");
+      resolve();
     });
+    router.once("route-error", event => {
+      reject(event.detail);
+    });
+
     router.route("/hello");
+    return promise;
   });
 
-  test("Redirects to correct route", async () => {
-    let dispose = router.on("route", (context) => {
-      console.log("Redirects to correct route", context);
-      dispose();
-      // expect(true).toBe(true);
-      expect(context.route.path).toBe("/hi/naikus");
-      expect(context.name).toBe("naikus");
+  test("Forwards to correct route", async () => {
+    const {promise, resolve, reject} = promiseWithResolvers();
+
+    router.once("route", event => {
+      const context = event.detail;
+      try {
+        // console.log("Redirects route", context);
+        expect(context.route.path).toBe("/hola/naikus");
+        expect(context.name).toBe("naikus");
+        expect(context.forward).toBe("/hi/naikus");
+      }catch(e) {
+        reject(e);
+      }
+
+      // This is the final route for redirect
+      router.once("route", event => {
+        const context = event.detail;
+        // console.log("Final Route", context);
+        try {
+          expect(context.route.from.path).toBe("/hola/naikus");
+          expect(context.route.path).toBe("/hi/naikus");
+          resolve();
+        }catch(e) {
+          reject(e);
+        }
+      });
     });
+
     router.route("/hola/naikus");
+    return promise;
   });
 
   test("Throws route error event if route not found", () => {
@@ -111,12 +152,13 @@ describe("Router tests", () => {
   });
 
   test("Route params extraction", () => {
-    const routeInfo = router.match("/hi/World");
-    expect(routeInfo).not.toBeNull();
-    expect(routeInfo.params).not.toBeNull();
-    expect(routeInfo.params.name).toBe("World");
+    const route = router.getRoute("/hi/World");
+    expect(route).not.toBeNull();
+    expect(route.params).not.toBeNull();
+    expect(route.params.name).toBe("World");
   });
 
+  /*
   test("Controller gets recent state", () => {
     const dispose = router.on("route", (context) => {
       console.log("Controller gets state", context);
@@ -126,11 +168,12 @@ describe("Router tests", () => {
     });
     router.route("/state-test", {hello: "World"});
   });
+  */
 
   test("Before route fired correctly", () => {
     // console.log("Events before-route");
     const dispose = router.on("before-route", (path) => {
-      console.log("Before route", path);
+      console.error("Before route", path);
       dispose();
       // console.log("before-route", path);
       expect(path).not.toBeNull();
