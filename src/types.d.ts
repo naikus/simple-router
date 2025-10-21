@@ -115,7 +115,7 @@ export interface Router {
   back(toPath?: string, state?: any): void;
   set(routePath: string, state?: any): void;
   getBrowserRoute(): string | null;
-  getCurrentRoute(): RouteInfo | null;
+  getCurrentRoute(): Route | null;
   start(): void;
   stop(): void;
   addRoutes(routes: RouteDefn[]): void;

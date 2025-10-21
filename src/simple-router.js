@@ -393,6 +393,7 @@ function createRouter(initialRoutes = []) {
             };
             // Emit a route event (event if this was a forward)
             emitter.emit("route", ctx);
+            // resolve();
 
             console.debug(`Forwarding from ${route.path} to ${forwardPath}`);
             // Resolve the forward route
@@ -503,8 +504,8 @@ function createRouter(initialRoutes = []) {
       if(!currentRouteData) {
         return null;
       }
-      const {routeInfo} = currentRouteData;
-      return routeInfo;
+      const {context} = currentRouteData;
+      return context.route;
     },
     start() {
       // Already started
