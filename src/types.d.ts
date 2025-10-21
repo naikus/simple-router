@@ -5,12 +5,15 @@ export interface Route {
   action?: RouteAction;
   path: string;
   from?: Route;
-  params?: Record<string, string>;
+  params: Record<string, string>;
 }
 
 export interface RouteContext {
-  // state: "abort" | "in-process" | "done";
-  // signal?: AbortSignal,
+  route: Route;
+  [propName: string]: any;
+}
+
+export interface EmptyRouteContext {
   route?: Route;
   [propName: string]: any;
 }
@@ -21,16 +24,11 @@ export type RouteControllerOpts = {
 }
 export interface RouteDefn {
   path: string;
-  controller: <T>(context: RouteContext, opts: RouteControllerOpts) => Promise<T> | T;
+  // controller: <T>(context: RouteContext, opts?: RouteControllerOpts) => Promise<T> | T;
+  controller: (context: RouteContext, opts?: RouteControllerOpts) => Promise<Record> | Record;
 }
 
 export interface RouteInfo extends RouteDefn {
-  // action: string;
-  // path: string;
-  // runtimePath: string;
-  // from?: RouteInfo;
-  // params?: Record<string, string>;
-  // controller: (context: any) => Promise<any>;
   pattern: RegExp;
   keys: any;
 }

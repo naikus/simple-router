@@ -4,7 +4,11 @@
  */
 import {test, expect, beforeEach, afterEach, describe} from "@jest/globals";
 import {log} from "console";
-import createRouter from "../src/index";
+import createRouter from "../src/simple-router";
+
+/**
+ * @typedef {import("../src/types").RouteDefn} RouteDefn
+ */
 
 /**
  * Gets an object that has promise and its resolve, reject functions
@@ -20,37 +24,59 @@ function promiseWithResolvers() {
   return {promise, resolve, reject};
 }
 
+/**
+ * Delays the resolve of a value
+ * @param {any} val
+ * @param {number} timeout
+ * @return {Promise}
+ */
+function delay(val, timeout = 1000) {
+  return new Promise((res, rej) => {
+    // eslint-disable-next-line no-undef
+    setTimeout(() => res(val), timeout);
+  });
+}
+
+/** @type {Array<RouteDefn>} */
 const routes = [
   {
     path: "/hello",
     controller: context => {
       return {
-        message: "hello"
+        message: "hello world"
       };
     }
   },
   {
-    path: "/hi/{:name}",
+    path: "/forward-target/{:name}",
     controller: context => {
       const {route: {params}} = context;
       return params;
     }
   },
   {
-    path: "/state-test",
+    path: "/params-test/{:name}/{:value}",
     controller: context => {
-      const {route} = context;
-      return route.state;
+      const {route: {params}} = context;
+      return params;
     }
   },
   {
-    path: "/hola/{:name}",
+    path: "/forward-test/{:name}",
     controller: context => {
       const {route: {params}} = context;
       return {
-        forward: `/hi/${params.name}`,
+        forward: `/forward-target/${params.name}`,
         name: params.name
       };
+    }
+  },
+  {
+    path: "/auto-abort-test",
+    controller: context => {
+      return delay({
+        delayed: true
+      });
     }
   }
 ];
@@ -75,9 +101,9 @@ describe("Router tests", () => {
     const {promise, resolve, reject} = promiseWithResolvers();
     router.once("route", event => {
       const context = event.detail;
-      console.log("Routes to path", context);
+      // console.log("Routes to path", context);
       expect(context.route.path).toBe("/hello");
-      expect(context.message).toBe("hello");
+      expect(context.message).toBe("hello world");
       resolve();
     });
     router.once("route-error", event => {
@@ -95,9 +121,9 @@ describe("Router tests", () => {
       const context = event.detail;
       try {
         // console.log("Redirects route", context);
-        expect(context.route.path).toBe("/hola/naikus");
+        expect(context.route.path).toBe("/forward-test/naikus");
         expect(context.name).toBe("naikus");
-        expect(context.forward).toBe("/hi/naikus");
+        expect(context.forward).toBe("/forward-target/naikus");
       }catch(e) {
         reject(e);
       }
@@ -107,8 +133,8 @@ describe("Router tests", () => {
         const context = event.detail;
         // console.log("Final Route", context);
         try {
-          expect(context.route.from.path).toBe("/hola/naikus");
-          expect(context.route.path).toBe("/hi/naikus");
+          expect(context.route.from.path).toBe("/forward-test/naikus");
+          expect(context.route.path).toBe("/forward-target/naikus");
           resolve();
         }catch(e) {
           reject(e);
@@ -116,13 +142,13 @@ describe("Router tests", () => {
       });
     });
 
-    router.route("/hola/naikus");
+    router.route("/forward-test/naikus");
     return promise;
   });
 
   test("Throws route error event if route not found", () => {
     let dispose = router.on("route-error", (context) => {
-      console.log("Throws route error", context);
+      // console.log("Throws route error", context);
       dispose();
       expect(true);
     });
@@ -152,10 +178,26 @@ describe("Router tests", () => {
   });
 
   test("Route params extraction", () => {
-    const route = router.getRoute("/hi/World");
+    const route = router.getRoute("/params-test/bar/baz");
     expect(route).not.toBeNull();
-    expect(route.params).not.toBeNull();
-    expect(route.params.name).toBe("World");
+    const params = route.params;
+    // console.log(params);
+    expect(params.name).toBe("bar");
+    expect(params.value).toBe("baz");
+  });
+
+  test("Ongoing routing gets aborted if another call to route() is made while routing", () => {
+    const {promise, resolve} = promiseWithResolvers();
+    router.on("route-error", event => {
+      const data = event.detail;
+      // console.log(data.error);
+      resolve();
+    });
+
+    router.route("/auto-abort-test"); // this one takes 1 sec to finish
+    // console.log("Calling another route immediately");
+    router.route("/hello");
+    return promise;
   });
 
   /*
