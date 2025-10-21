@@ -122,4 +122,4 @@ export interface Router {
   addRoute(route: RouteDefn): void;
 }
 
-declare function create(routes: Array<RouteDefn>, options: any): Router;
+declare function create(routes: Array<RouteDefn>, options?: any): Router;

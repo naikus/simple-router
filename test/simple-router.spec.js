@@ -87,7 +87,7 @@ let router;
 
 beforeEach(() => {
   // console.log("Before all");
-  router = createRouter(routes);
+  router = createRouter(routes, {});
   router.start();
 });
 
