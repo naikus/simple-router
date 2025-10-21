@@ -352,7 +352,7 @@ function createRouter(initialRoutes = []) {
     abortController = new AbortController();
     const signal = abortController.signal;
 
-    // /*
+    /*
     // eslint-disable-next-line one-var
     const abortListener = event => {
       // reject(signal.reason);
@@ -362,7 +362,7 @@ function createRouter(initialRoutes = []) {
       });
     };
     signal.addEventListener("abort", abortListener);
-    // */
+    */
 
     // Emit the before route event
     emitter.emit("before-route", path);
@@ -385,6 +385,15 @@ function createRouter(initialRoutes = []) {
             routeInfo
           };
           */
+          if(signal.aborted) {
+            emitter.emit("route-error", {
+              path,
+              error: signal.reason
+            });
+            resolve();
+            return;
+          }
+
           // This result wants us to forward
           if(forwardPath) {
             const ctx = {
@@ -428,7 +437,7 @@ function createRouter(initialRoutes = []) {
           emitter.emit("route-error", {path, error: err});
           reject(err);
         }).finally(() => {
-          signal.removeEventListener("abort", abortListener);
+          // signal.removeEventListener("abort", abortListener);
         });
 
     // Return the promise
