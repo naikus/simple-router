@@ -249,7 +249,6 @@ function createRouter(initialRoutes = []) {
           const val = res[i+1];
           val && (params[key.name] = val);
         });
-        // console.log(params, routeInfo.keys, res);
         return true;
       }
       return false;
@@ -398,11 +397,11 @@ function createRouter(initialRoutes = []) {
           // This result wants us to forward
           if(forwardPath) {
             const ctx = {
-              ...val,
-              ...matchedRouteCtx
+              ...matchedRouteCtx,
+              ...val
             };
             // Emit a route event (event if this was a forward)
-            emitter.emit("route", ctx);
+            emitter.emit("route-forward", ctx);
             // resolve();
 
             console.debug(`Forwarding from ${route.path} to ${forwardPath}`);
@@ -428,8 +427,8 @@ function createRouter(initialRoutes = []) {
             // console.debug("Emitting final route event!!");
             resolve();
             emitter.emit("route", {
-              ...val,
               ...matchedRouteCtx,
+              ...val, // The order is important here!
               route
             });
           }

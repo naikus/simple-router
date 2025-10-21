@@ -117,7 +117,7 @@ describe("Router tests", () => {
   test("Forwards to correct route", async () => {
     const {promise, resolve, reject} = promiseWithResolvers();
 
-    router.once("route", event => {
+    router.once("route-forward", event => {
       const context = event.detail;
       try {
         // console.log("Redirects route", context);
@@ -127,19 +127,19 @@ describe("Router tests", () => {
       }catch(e) {
         reject(e);
       }
+    });
 
-      // This is the final route for redirect
-      router.once("route", event => {
-        const context = event.detail;
-        // console.log("Final Route", context);
-        try {
-          expect(context.route.from.path).toBe("/forward-test/naikus");
-          expect(context.route.path).toBe("/forward-target/naikus");
-          resolve();
-        }catch(e) {
-          reject(e);
-        }
-      });
+    // This is the final route for redirect
+    router.once("route", event => {
+      const context = event.detail;
+      // console.log("Final Route", context);
+      try {
+        expect(context.route.from.path).toBe("/forward-test/naikus");
+        expect(context.route.path).toBe("/forward-target/naikus");
+        resolve();
+      }catch(e) {
+        reject(e);
+      }
     });
 
     router.route("/forward-test/naikus");
