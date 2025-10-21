@@ -202,6 +202,7 @@ function createHashHistory() {
 
 
 /**
+ * @type {createRouter}
  * Creates a new instance of Router
  * @param {Array<RouteDefn>} initialRoutes
  * @return {Router} Newly created router
