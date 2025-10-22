@@ -103,7 +103,7 @@ function createHashHistory() {
    */
   function hashListener(event) {
     if(ignoreHashChange) {
-      console.debug("ignoring hash change", event);
+      console.debug("Ignoring hash change", event);
       ignoreHashChange = false;
       return;
     }
@@ -137,8 +137,27 @@ function createHashHistory() {
    */
   function clickListener(event) {
     // console.log(event);
-    // @ts-ignore
-    const {target: {href}} = event, current = stack[stack.length - 1];
+    const {target} = event,
+        current = stack[stack.length - 1];
+
+    let depth = 0,
+        // @ts-ignore
+        {href} = target,
+        /** @type {HTMLElement} */
+        // @ts-ignore
+        elem = target;
+
+    // eslint-disable-next-line keyword-spacing
+    while(!href || depth < 3) {
+      // @ts-ignore
+      elem = elem.parentElement;
+      if(!elem) {
+        break;
+      }
+      href = elem.getAttribute("href");
+      depth += 1;
+    }
+
     if(href !== current) {
       linkClicked = href;
     }
@@ -237,6 +256,7 @@ function createRouter(initialRoutes = []) {
   function match(path) {
     /** @type {Record<string, string>} */
     let params,
+        /** @type {RouteInfo} */
         matchedRouteInfo;
     Array.from(routes.values()).some(routeInfo => {
       // @ts-ignore
@@ -253,11 +273,13 @@ function createRouter(initialRoutes = []) {
       }
       return false;
     });
+    // @ts-ignore
     if(matchedRouteInfo) {
       return {
         routeInfo: matchedRouteInfo,
         route: {
           path,
+          routePath: matchedRouteInfo.path,
           // @ts-ignore
           params
         }
@@ -470,7 +492,6 @@ function createRouter(initialRoutes = []) {
     },
     matches(path) {
       // return routes.some(route => route.pattern.test(path));
-
       return Array.from(routes.values())
           .some(route => route.pattern.test(path));
     },
@@ -524,9 +545,11 @@ function createRouter(initialRoutes = []) {
 
       stopHistoryListener = history.listen((route, action) => {
         resolveRoute(route, action, {})
-            .then(val => {
-              console.debug(route, val);
+            /*
+            .then(() => {
+              console.debug(route);
             })
+            */
             .catch(err => {
               console.error(err);
             });

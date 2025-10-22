@@ -4,6 +4,7 @@ export interface Route {
   forwarded?: boolean;
   action?: RouteAction;
   path: string;
+  routePath: string;
   from?: Route;
   params: Record<string, string>;
 }
@@ -101,19 +102,9 @@ export interface Router {
    */
   match(path: string): RouteInfo | null;
   getRoute(path: string): Route | null;
-
-  /**
-   * Resolve a route specified by path, calling the controller for the rute defn if found
-   * @param {string} path The route path
-   * @param {string} action "PUSH" | "POP"
-   * @param {any} context 
-   */
-  // resolve(path: string, action: RouteAction, context?: any): Promise<any>;
-  // setState(state: any): void;
-  // clearState(): void;
-  route(path: string, state?: any, replace?: boolean): void;
-  back(toPath?: string, state?: any): void;
-  set(routePath: string, state?: any): void;
+  route(path: string, replace?: boolean): void;
+  back(toPath?: string): void;
+  set(routePath: string): void;
   getBrowserRoute(): string | null;
   getCurrentRoute(): Route | null;
   start(): void;
