@@ -41,7 +41,7 @@ export interface RouteHistory {
   getSize: () => number;
   /**
    * Start listening to hash based route history
-   * @param listener 
+   * @param listener
    * @returns {Function} Un-subscriber
    */
   listen: (listener: RouteHistoryListener) => Function;
@@ -49,15 +49,15 @@ export interface RouteHistory {
   replace: (path: string) => void;
   /**
    * Set a path and push it on the stack without calling the hash listener
-   * @param path 
-   * @param push 
+   * @param path
+   * @param push
    * @return {void}
    */
   set: (path: string, push?: boolean) => void;
 
   /**
    * Pop from the history
-   * @param toPath 
+   * @param toPath
    * @return {void}
    */
   pop: (toPath?: string) => void;
@@ -94,10 +94,10 @@ export interface Router {
    * @returns {true} If there's a match
    */
   matches(path: string): boolean;
-  
+
   /**
    * Tries to match the Route to the specified path
-   * @param {string} path 
+   * @param {string} path
    * @returns {RouteInfo|null}
    */
   match(path: string): RouteInfo | null;
