@@ -399,7 +399,7 @@ function createRouter(initialRoutes = []) {
 
     processRoute(routeInfo, matchedRouteCtx, abortController.signal)
         .then(val => {
-          const forwardPath = val.forward;
+          const forwardPath = val && val.forward;
           /*
           // Set the current data
           currentRouteData = {
@@ -438,7 +438,7 @@ function createRouter(initialRoutes = []) {
             }).then(() => {
               // set the browser hash to correct value for forwarded route while pushing
               // onto the stack (second param) without invoking the hashchange listener
-              history.set(val.forward, true);
+              history.set(forwardPath, true);
               resolve();
             }).catch(err => {
               emitter.emit("route-error", {path: forwardPath, error: err});
