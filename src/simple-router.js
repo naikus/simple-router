@@ -209,7 +209,7 @@ function createHashHistory() {
       }
       const path = toPath || stack[stack.length - 2] || "";
       // Correctly maintain backstack. This is not possible if toPath is provided.
-      if(toPath) {
+      if(path) {
         window.location.hash = path;
       }else {
         window.history.go(-1);
