@@ -1,8 +1,5 @@
-/**
- * @jest-environment jsdom
- * @jest-environment-options {"url": "https://localhost:8080"}
- */
-import {test, expect, beforeEach, afterEach, describe} from "@jest/globals";
+
+import {test, expect, beforeEach, afterEach, describe} from "vitest";
 import {log} from "console";
 import createRouter from "../src/simple-router";
 
