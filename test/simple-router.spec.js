@@ -91,11 +91,17 @@ function makeRouter() {
 
 
 describe("Router tests", () => {
-  let router;
+  let router, cleanup;
+
+  beforeEach(() => {
+    [router, cleanup] = makeRouter();
+  });
+  afterEach(() => {
+    cleanup();
+  });
 
   test("Routes to a path", () => {
-    const {promise, resolve, reject} = promiseWithResolvers(),
-        [router, cleanup] = makeRouter();
+    const {promise, resolve, reject} = promiseWithResolvers();
     router.once("route", event => {
       const context = event.detail;
       expect(context.route.path).toBe("/hello");
@@ -111,8 +117,7 @@ describe("Router tests", () => {
   });
 
   test("Forwards to correct route", () => {
-    const {promise, resolve, reject} = promiseWithResolvers(),
-        [router, cleanup] = makeRouter();
+    const {promise, resolve, reject} = promiseWithResolvers();
 
     router.once("route-forward", event => {
       const context = event.detail;
@@ -144,8 +149,7 @@ describe("Router tests", () => {
   });
 
   test("Throws route error event if route not found", () => {
-    const {promise, resolve, reject} = promiseWithResolvers(),
-        [router, cleanup] = makeRouter();
+    const {promise, resolve, reject} = promiseWithResolvers();
 
     let dispose = router.on("route-error", event => {
       // console.log("Throws route error", event.detail);
@@ -162,67 +166,56 @@ describe("Router tests", () => {
   });
 
   test("Test route matches", () => {
-    const [router, cleanup] = makeRouter();
     expect(router.matches("/hello")).toBe(true);
-    cleanup();
   });
 
   test("Test route matches with trailing slash", () => {
-    const [router, cleanup] = makeRouter();
     expect(router.matches("/hello/")).toBe(true);
-    cleanup();
   });
 
   test("Test route does not match", () => {
-    const [router, cleanup] = makeRouter();
     expect(router.matches("/hello/w")).toBe(false);
-    cleanup();
   });
 
   test("The match returns a route object when route matches", () => {
-    const [router, cleanup] = makeRouter(),
-        routeInfo = router.match("/hello");
+    const routeInfo = router.match("/hello"); 
     expect(routeInfo).not.toBeNull();
     expect(routeInfo?.path).toBe("/hello");
   });
 
   test("Route params extraction", () => {
-    const [router, cleanup] = makeRouter();
     const route = router.getRoute("/params-test/bar/baz");
     expect(route).not.toBeNull();
     const params = route?.params;
     expect(params?.name).toBe("bar");
     expect(params?.value).toBe("baz");
-    cleanup();
+    // cleanup();
   });
 
   test("Before route fired correctly", () => {
     // console.log("Events before-route");
-    const {promise, resolve} = promiseWithResolvers(),
-        [router, cleanup] = makeRouter();
-    let myRouter = createRouter(routes, {});
+    const {promise, resolve} = promiseWithResolvers();
 
-    myRouter.start();
-    myRouter.once("before-route", (event) => {
+    // router.start();
+    router.once("before-route", (event) => {
       const path = event.detail;
       expect(path).not.toBeNull();
       expect(path).toBe("/hello");
       resolve();
     });
     router.route("/hello");
-    return promise.finally(() => cleanup());
+    return promise;
   });
 
   test("Ongoing routing gets aborted if another call to route() is made while routing", async() => {
-    const {promise, resolve, reject} = promiseWithResolvers(),
-        [router, cleanup] = makeRouter();
+    const {promise, resolve, reject} = promiseWithResolvers(); 
 
     router.once("route", event => {
       // console.log(event.detail);
       const routeInfo = event.detail;
       // console.log("Detail is -------- ", routeInfo);
-      expect(routeInfo.route.path).toBe("/hello");
-      // resolve();
+      // expect(routeInfo.route.path).toBe("/hello");
+      reject();
     });
 
     router.once("route-abort", e => {
@@ -235,18 +228,18 @@ describe("Router tests", () => {
     router.route("/auto-abort-test"); // this one takes 1 sec to finish
     // console.log("Calling another route immediately");
     router.route("/hello");
-    return promise.finally(() => cleanup());
+    return promise;
   });
 
   test("Aborting route from before-route handler", () => {
-    const {promise, resolve, reject} = promiseWithResolvers(),
-        [router, cleanup] = makeRouter();
+    const {promise, resolve, reject} = promiseWithResolvers();
 
     router.on("before-route", event => {
       event.preventDefault();
     });
 
     router.once("route-abort", event => {
+      // console.log(event.detail);
       const {detail} = event;
       try {
         expect(detail.path).toBe("/hello");
@@ -258,6 +251,6 @@ describe("Router tests", () => {
     });
 
     router.route("/hello");
-    return promise.finally(() => cleanup);
+    return promise;
   });
 });

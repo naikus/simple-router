@@ -153,7 +153,6 @@ function createHashHistory() {
         // @ts-ignore
         elem = target;
 
-    // eslint-disable-next-line keyword-spacing
     while(!href || depth < 3) {
       // @ts-ignore
       elem = elem.parentElement;
@@ -239,16 +238,16 @@ function createRouter(initialRoutes = []) {
       history = createHashHistory();
 
   /**
-   * @typedef {{
-   *  context: RouteContext
-   *  routeInfo: RouteInfo,
-   *  abortController: AbortController,
-   *  resolved: boolean
-   * } | null} CurrentRouteData
+   * @typedef RouterStateData
+   * @property {RouteContext} context
+   * @property {RouteInfo} routeInfo
+   * @property {AbortController} abortController
    */
 
-  /** @type {CurrentRouteData} */
-  let currentRouteData = null,
+  /** @type {RouterStateData?} */
+  let state = null,
+      /** @type {RouterStateData?} */
+      resolving = null,
       /** @type {Function | null} */
       stopHistoryListener = null;
 
@@ -311,17 +310,23 @@ function createRouter(initialRoutes = []) {
 
   /**
    * Process the specified route by calling it's controller if present
-   * @param {RouteInfo} routeInfo
-   * @param {RouteContext} context
-   * @param {AbortSignal} signal
+   * @param {RouterStateData} routerData
    * @return {Promise<any>}
    */
-  function processRouteController(routeInfo, context, signal) {
-    const {controller} = routeInfo;
+  function processRouteController(routerData) {
+    const {routeInfo, abortController, context} = routerData, 
+        {controller} = routeInfo,
+        {signal} = abortController;
+
     let retVal = typeof controller === "function"
       ? controller(context, {signal})
       : context;
-    return Promise.resolve(retVal);
+    return Promise.resolve(retVal).then(val => {
+      return {
+        routerData,
+        val
+      };
+    });
   }
 
   /**
@@ -334,11 +339,11 @@ function createRouter(initialRoutes = []) {
     // console.debug("[Router] Resolving...", path, context);
     const routeMatch = match(path),
         {promise, resolve, reject} = promiseWithResolvers(),
-        fromRoute = currentRouteData ? currentRouteData.context.route : context.route;
+        fromRoute = state ? state.context.route : context.route;
 
     // Abort this current route if it's still processing
-    if(currentRouteData && !currentRouteData.resolved) {
-      const {abortController, context: {route}} = currentRouteData,
+    if(resolving) {
+      const {abortController, context: {route}} = resolving,
           reason = {name: "newroute", data: path};
       abortController.abort(reason);
       emitter.emit("route-abort", {
@@ -370,82 +375,87 @@ function createRouter(initialRoutes = []) {
         path,
         reason: {name: "prevented", data: "before-route"}
       });
+      resolving = null;
       resolve();
       return promise;
     }
 
     // process the route
-    const matchedRouteCtx = {...context, route},
-        abortController = new AbortController(),
-        signal = abortController.signal;
-
+    const matchedRouteCtx = {...context, route};
     // Set the current data
-    currentRouteData = {
+    resolving = {
       context: matchedRouteCtx,
       routeInfo,
-      abortController,
-      resolved: false
+      abortController: new AbortController()
     };
 
-    processRouteController(routeInfo, matchedRouteCtx, signal)
-        .then(val => {
-          // Set the current data
-          currentRouteData && (currentRouteData.resolved = true);
-          const forwardPath = val && val.forward;
+    processRouteController(resolving)
+      .then(resolveData => {
+        // console.log("[Router] Resolved", currentRouteData);
+        /** @type {{routerData: RouterStateData, val: any}} */
+        const {routerData, val} = resolveData,
+            {abortController: {signal}, routeInfo} = routerData; 
 
-          if(signal.aborted) {
-            const {name, data} = signal.reason;
-            // console.debug("[Router] Signal aborted", signal.reason);
+        if(signal.aborted) {
+          // console.log("[Router] ", resolveData === resolving);
+          // const {name, data} = signal.reason;
+          console.warn("[Router] Aborted", routeInfo.path, signal.reason);
+          // resolve();
+          return;
+        }
+
+        // Set the current router data
+        state = routerData;
+        resolving = null;
+
+        // Set the current data
+        const forwardPath = val && val.forward;
+
+        // This result wants us to forward
+        if(forwardPath) {
+          const ctx = {
+            ...matchedRouteCtx,
+            ...val
+          };
+          // Emit a route event (event if this was a forward)
+          emitter.emit("route-forward", ctx);
+          // resolve();
+
+          // console.debug(`[Router] Forwarding from ${route.path} to ${forwardPath}`);
+          // Resolve the forward route
+          resolveRoute(forwardPath, action, {
+            ...ctx,
+            forward: null, // We don't want to recursively keep forwarding
+            route: {
+              ...route,
+              forwarded: true
+            }
+          }).then(() => {
+            // set the browser hash to correct value for forwarded route while pushing
+            // onto the stack (second param) without invoking the hashchange listener
+            history.set(forwardPath, true);
             resolve();
-            return;
-          }
-
-          // This result wants us to forward
-          if(forwardPath) {
-            const ctx = {
-              ...matchedRouteCtx,
-              ...val
-            };
-            // Emit a route event (event if this was a forward)
-            emitter.emit("route-forward", ctx);
-            // resolve();
-
-            // console.debug(`[Router] Forwarding from ${route.path} to ${forwardPath}`);
-            // Resolve the forward route
-            resolveRoute(forwardPath, action, {
-              ...ctx,
-              forward: null, // We don't want to recursively keep forwarding
-              route: {
-                ...route,
-                forwarded: true
-              }
-            }).then(() => {
-              // set the browser hash to correct value for forwarded route while pushing
-              // onto the stack (second param) without invoking the hashchange listener
-              history.set(forwardPath, true);
-              resolve();
-            }).catch(err => {
-              emitter.emit("route-error", {path: forwardPath, error: err});
-              reject(err);
-            });
-          }else {
-            // This is some data returned by the controller
-            // console.debug("[Router] Emitting final route event!!");
-            resolve();
-            emitter.emit("route", {
-              ...matchedRouteCtx,
-              ...val, // The order is important here!
-              route
-            });
-          }
-        })
-        .catch(err => {
-          emitter.emit("route-error", {path, error: err});
-          reject(err);
-        }).finally(() => {
-          currentRouteData && (currentRouteData.resolved = true);
-          // console.log(currentRouteData);
-        });
+          }).catch(err => {
+            emitter.emit("route-error", {path: forwardPath, error: err});
+            reject(err);
+          });
+        }else {
+          // This is some data returned by the controller
+          // console.debug("[Router] Emitting final route event!!");
+          resolve();
+          emitter.emit("route", {
+            ...matchedRouteCtx,
+            ...val, // The order is important here!
+            route
+          });
+        }
+      })
+      .catch(err => {
+        emitter.emit("route-error", {path, error: err});
+        reject(err);
+      }).finally(() => {
+        // console.log(state, resolving);
+      });
 
     // Return the promise
     return promise;
@@ -466,7 +476,7 @@ function createRouter(initialRoutes = []) {
     matches(path) {
       // return routes.some(route => route.pattern.test(path));
       return Array.from(routes.values())
-          .some(route => route.pattern.test(path));
+        .some(route => route.pattern.test(path));
     },
     match(path) {
       const ret = match(path);
@@ -504,10 +514,10 @@ function createRouter(initialRoutes = []) {
       return null;
     },
     getCurrentRoute() {
-      if(!currentRouteData) {
+      if(!state) {
         return null;
       }
-      const {context} = currentRouteData;
+      const {context} = state;
       return context.route;
     },
     start() {
@@ -517,26 +527,26 @@ function createRouter(initialRoutes = []) {
       }
       stopHistoryListener = history.listen((route, action) => {
         resolveRoute(route, action, {})
-            /*
-            .then(() => {
-              console.debug("[Router^^^^^]", route);
-            })
-            */
-            .catch(err => {
-              console.error(err);
-            });
+          /*
+          .then(() => {
+            console.debug("[Router^^^^^]", route);
+          })
+          */
+          .catch(err => {
+            console.error(err);
+          });
       });
     },
     stop() {
-      emitter.removeAll();
-      if(currentRouteData) {
-        currentRouteData.resolved = true;
-        currentRouteData.abortController.abort({name: "routerstopped", data: ""})
+      if(resolving) {
+        resolving.abortController.abort({name: "routerstopped", data: ""});
+        resolving = null;
       }
       if(stopHistoryListener) {
         stopHistoryListener();
         stopHistoryListener = null;
       }
+      emitter.removeAll();
     },
     addRoutes(routeDefns = []) {
       routeDefns.forEach(r => {
